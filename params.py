@@ -1,0 +1,2 @@
+SEED = 1984
+N_SPLITS = 5

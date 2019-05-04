@@ -5,6 +5,6 @@ nvidia-docker run  \
   --name pr1\
   --user 1014:1014\
   -p 8138:8888 \
-  kommiu/pytorch\
+  kommiu/nlp\
   jupyter notebook --ip=0.0.0.0 --no-browser
 
