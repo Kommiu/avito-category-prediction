@@ -10,20 +10,21 @@
     функции для обучения и кроссвалидации pytorch моделей, 
     а также различные вспомогательные функции
 2. Тетрадки
-    * [notebooks/fastText]  эксперименты с моделями на основе fastText
-    *  [notebooks/tfidf] эксперименты с tf-idf фичами и простыми
-     моделями из sklearn
-    *  [notebooks/process_data] обработка исходных данных и запись 
-    в удобные для обучения форматы
-    * [notebooks/label_hierarchies] генерация отображения 
+    * [notebooks/label_hierarchies] генерация отображения (почему то оказалсь заигнорена git'ом)
     __category_id__ лейблов в лейблы других уровней иерархии
-    * [notebooks/rnn_cross_val] эксперименты с lstm моделями
-    * [notebooks/cnn_cross_val] неактуальный код для экспериментов 
+    *  [notebooks/process_data](https://github.com/Kommiu/avito-category-prediction/blob/master/notebooks/process_data.ipynb) обработка исходных данных и запись 
+    в удобные для обучения форматы
+    * [notebooks/fastText](https://github.com/Kommiu/avito-category-prediction/blob/master/notebooks/fastText.ipynb)  эксперименты с моделями на основе fastText
+    *  [notebooks/tfidf](https://github.com/Kommiu/avito-category-prediction/blob/master/notebooks/tfidf.ipynb) эксперименты с tf-idf фичами и простыми
+     моделями из sklearn
+    * [notebooks/rnn_cross_val](https://github.com/Kommiu/avito-category-prediction/blob/master/notebooks/rnn_cross_val.ipynb) эксперименты с lstm моделями
+    * [notebooks/cross_val_сnn](https://github.com/Kommiu/avito-category-prediction/blob/master/notebooks/cross_val_cnn.ipynb) неактуальный код для экспериментов 
     с cnn моделями, не вышло получить модель хотябы сравнимую с lstm, поэтому я не стал приводить тетрадку в актуальный вид
-    * [notebooks/validation]  проверка финальных моделей 
+    * [notebooks/validation](https://github.com/Kommiu/avito-category-prediction/blob/master/notebooks/validation.ipynb)  проверка финальных моделей 
     на отложенной выборке
-    * [notebooks/make_test_predictions] обучаю финальную модель на 
-    всей тренировочной выборке и делаю предсказания
+    * [notebooks/make_test_predictions](https://github.com/Kommiu/avito-category-prediction/blob/master/notebooks/make_test_predictions.ipynb) обучаю lstm на 
+    всей тренировочной выборке и делаю предсказания, но неуспеваю.
+    * [notebooks/final_preds](https://github.com/Kommiu/avito-category-prediction/blob/master/notebooks/final_preds.ipynb) экстренное предсказание для теста с помощью tf-idf + LinearSVC
 3. Предсказания для тестовой выборки:
 [predictions.csv](hhtps:)
 
