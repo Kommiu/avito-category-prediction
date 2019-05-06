@@ -2,17 +2,119 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from training_utils import categorical_accuracy
+import pandas as pd
 
-class RNN(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, output_dim, n_layers,
-                 biderectional, dropout, pad_idx):
+
+class RNN_plus_MLP(nn.Module):
+    def __init__(self, vocab_size, output_dim, embedding_dim, hidden_dim, n_layers,
+                 bidirectional, mlp_sizes, dropout, pad_idx):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=pad_idx)
 
         self.rnn = nn.LSTM(embedding_dim,
                            hidden_dim,
                            num_layers=n_layers,
-                           biderectional=biderectional,
+                           bidirectional=bidirectional,
+                           dropout=dropout
+                           )
+
+        self.mlp = nn.Sequential()
+        for i, (in_dim, out_dim) in enumerate(zip(mlp_sizes[:-1], mlp_sizes[1:])):
+            self.mlp.add_module(f'l-{i}', nn.Linear(in_dim, out_dim))
+            self.mlp.add_module(f'a-{i}', nn.ReLU())
+
+        self.fc = nn.Linear(hidden_dim * 2 + mlp_sizes[-1], output_dim)
+
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, text, text_lengths, nums):
+
+        embedded = self.dropout(self.embedding(text))
+
+        packed_embedded = nn.utils.rnn.pack_padded_sequence(embedded, text_lengths)
+
+        _, (hidden, cell) = self.rnn(packed_embedded)
+
+        hidden = torch.cat((hidden[-2,:,:], hidden[-1,:,:]), dim=1)
+        nums = nums.permute(1, 0)
+        nums = self.mlp(nums).permute(0, 1)
+        hidden = torch.cat((hidden, nums), dim=1)
+        hidden = self.dropout(hidden)
+
+        return self.fc(hidden.squeeze(0))
+
+    def train_epoch(self, iterator, optimizer, criterion):
+        epoch_loss = 0
+        epoch_acc = 0
+        self.train()
+
+        for batch in iterator:
+            optimizer.zero_grad()
+            text, text_lengths = batch.text
+            nums = batch.nums
+            predictions = self.forward(text, text_lengths, nums).squeeze(1)
+            loss = criterion(predictions, batch.label)
+            acc = categorical_accuracy(predictions, batch.label)
+
+            loss.backward()
+            optimizer.step()
+
+            epoch_loss += loss.item()
+            epoch_acc += acc.item()
+
+        return epoch_loss/len(iterator), epoch_acc/len(iterator)
+
+    def evaluate_epoch(self, iterator, criterion):
+        epoch_loss = 0
+        epoch_acc = 0
+
+        self.eval()
+        with torch.no_grad():
+            for batch in iterator:
+                text, text_lengths = batch.text
+                nums = batch.nums
+                predictions = self.forward(text, text_lengths, nums).squeeze(1)
+
+                loss = criterion(predictions, batch.label)
+                acc = categorical_accuracy(predictions, batch.label)
+
+                epoch_loss += loss.item()
+                epoch_acc += acc.item()
+
+        return epoch_loss/len(iterator), epoch_acc/len(iterator)
+
+    def predict(self, iterator):
+
+        result = torch.LongTensor()
+        self.eval()
+        with torch.no_grad():
+            for batch in iterator:
+                text, text_lengths = batch.text
+                ids = batch.id.unsqueeze(1)
+                nums = batch.nums
+
+                predictions = self.forward(text, text_lengths, nums).squeeze(1)
+                predictions = predictions.argmax(dim=1, keepdim=True)
+
+                batch_result = torch.cat([ids, predictions], dim=1).to('cpu')
+                result = torch.cat([result, batch_result], dim=0)
+
+        result = result.numpy()
+
+        result = pd.DataFrame(result, columns=['item_id', 'category_id']).sort_values(by='item_id')
+        return result
+
+
+class RNN(nn.Module):
+    def __init__(self, vocab_size, output_dim, embedding_dim, hidden_dim, n_layers,
+                 bidirectional, dropout, pad_idx):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=pad_idx)
+
+        self.rnn = nn.LSTM(embedding_dim,
+                           hidden_dim,
+                           num_layers=n_layers,
+                           bidirectional=bidirectional,
                            dropout=dropout
                            )
 
@@ -32,6 +134,64 @@ class RNN(nn.Module):
         hidden = self.dropout(hidden)
 
         return self.fc(hidden.squeeze(0))
+
+    def train_epoch(self, iterator, optimizer, criterion):
+        epoch_loss = 0
+        epoch_acc = 0
+        self.train()
+
+        for batch in iterator:
+            optimizer.zero_grad()
+            text, text_lengths = batch.text
+            predictions = self.forward(text, text_lengths).squeeze(1)
+            loss = criterion(predictions, batch.label)
+            acc = categorical_accuracy(predictions, batch.label)
+
+            loss.backward()
+            optimizer.step()
+
+            epoch_loss += loss.item()
+            epoch_acc += acc.item()
+
+        return epoch_loss/len(iterator), epoch_acc/len(iterator)
+
+    def evaluate_epoch(self, iterator, criterion):
+        epoch_loss = 0
+        epoch_acc = 0
+
+        self.eval()
+        with torch.no_grad():
+            for batch in iterator:
+                text, text_lengths = batch.text
+                predictions = self.forward(text, text_lengths).squeeze(1)
+
+                loss = criterion(predictions, batch.label)
+                acc = categorical_accuracy(predictions, batch.label)
+
+                epoch_loss += loss.item()
+                epoch_acc += acc.item()
+
+        return epoch_loss/len(iterator), epoch_acc/len(iterator)
+
+    def predict(self, iterator):
+
+        result = torch.LongTensor()
+        self.eval()
+        with torch.no_grad():
+            for batch in iterator:
+                text, text_lengths = batch.text
+                ids = batch.id.unsqueeze(1)
+
+                predictions = self.forward(text, text_lengths).squeeze(1)
+                predictions = predictions.argmax(dim=1, keepdim=True)
+
+                batch_result = torch.cat([ids, predictions], dim=1).to('cpu')
+                result = torch.cat([result, batch_result], dim=0)
+
+        result = result.numpy()
+
+        result = pd.DataFrame(result, columns=['item_id', 'category_id']).sort_values(by='item_id')
+        return result
 
 
 
@@ -113,7 +273,26 @@ class CNN(nn.Module):
 
         return epoch_loss/len(iterator), epoch_acc/len(iterator)
 
-class CNN_jaccard(nn.Module):
+    def predict(self, iterator):
+
+        result = torch.LongTensor()
+        self.eval()
+        with torch.no_grad():
+            for batch in iterator:
+                text = batch.text
+                ids = batch.id.unsqueeze(1)
+
+                predictions = self.forward(text).squeeze(1)
+                predictions = predictions.argmax(dim=1, keepdim=True)
+
+                batch_result = torch.cat([ids, predictions], dim=1).to('cpu')
+                result = torch.cat([result, batch_result], dim=0)
+
+        result = result.numpy()
+
+        result = pd.DataFrame(result, columns=['item_id', 'category_id']).sort_values(by='item_id')
+        return result
+class CNN_plus_MLP(nn.Module):
     def __init__(self, vocab_size, output_dim, embedding_dim,
                  n_filters, filter_sizes, linear_sizes,
                  dropout, pad_idx):
@@ -196,3 +375,24 @@ class CNN_jaccard(nn.Module):
                 epoch_acc += acc.item()
 
         return epoch_loss/len(iterator), epoch_acc/len(iterator)
+
+    def predict(self, iterator):
+
+        result = torch.LongTensor()
+        self.eval()
+        with torch.no_grad():
+            for batch in iterator:
+                text = batch.text
+                nums = batch.nums
+                ids = batch.id.unsqueeze(0)
+
+                predictions = self.forward(text, nums)
+                predictions = predictions.argmax(dim=1, keepdim=True)
+
+                batch_result = torch.cat([ids, predictions], dim=0)
+                result = torch.cat([result, batch_result], dim=1)
+
+        result = result.to('cpu').numpy().T
+
+        result = pd.DataFrame(result, columns=['item_id', 'category_id']).sort_values(by='item_id')
+        return result
