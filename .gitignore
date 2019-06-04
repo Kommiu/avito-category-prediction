@@ -1,0 +1,11 @@
+data/*
+*.json
+.idea
+trained_models/*
+embeddings/*
+.ipynb_checkpoints
+__pycache__
+runs/*
+soft
+*.txt
+*.sh
